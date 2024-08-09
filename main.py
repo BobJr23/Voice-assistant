@@ -1,8 +1,11 @@
 import speech_recognition as sr
-import winsound
-from gtts import gTTS
+import winsound, time, os
 from playsound import playsound, PlaysoundException
-import os
+from email_sender import send_email
+from gtts import gTTS
+from tkinter import simpledialog
+
+not_finished = True
 
 
 def main(response):
@@ -10,37 +13,14 @@ def main(response):
     print(response)
     if "disable" in response:
         return False
-
+    elif "email" in response:
+        email(response.split()[-1])
     return True
 
 
-def process(audio, r):
-    try:
-
-        return r.recognize_google(audio)
-    except sr.UnknownValueError:
-        return "I didn't get that, try again."
-    except sr.RequestError:
-        return "Unable to process at this time"
-
-
-def speak(words):
-    filename = "speak.mp3"
-    os.remove(filename)
-
-    gTTS(
-        words,
-        lang="en",
-        tld="com.au",
-    ).save(filename)
-    try:
-        playsound(filename)
-    except PlaysoundException:
-        print("Error playing sound")
-
-
-def query(beep=True):
-
+def query(prompt=None, beep=True):
+    if prompt:
+        speak(prompt)
     if beep:
         winsound.Beep(150, 1000)
 
@@ -56,12 +36,56 @@ def query(beep=True):
     return final
 
 
-if __name__ == "__main__":
-    not_finished = True
-    while not_finished:
-        response = query(beep=False)
-        # Activation word is "echo" for now, prob customise later
-        if "echo" in response:
-            main(response)
-        else:
-            print("No activation", response)
+def speak(words):
+    os.remove("speak.mp3")
+
+    filename = rf"peak.mp3"
+    gTTS(
+        words,
+        lang="en",
+        tld="com.au",
+    ).save(filename)
+    try:
+        playsound(filename)
+    except PlaysoundException:
+        print("Error playing sound")
+
+
+def process(audio, r):
+    try:
+
+        return r.recognize_google(audio)
+    except sr.UnknownValueError:
+        return "I didn't get that, try again."
+    except sr.RequestError:
+        return "Unable to process at this time"
+
+
+def email(username):
+    # Contacts
+
+    speak("Enter the user's email in")
+    user = "custom"
+    address = simpledialog.askstring("Email", "User's Email")
+
+    ###
+    while True:
+        contents = query(f"Emailing {user}, what would you like to say?")
+        print("Now confirming")
+        confirm = query("You said" + contents + " . Do you want to send?")
+
+        if "yes" in confirm:
+            print("Sending...")
+            send_email(address, contents)
+            speak(f"Email sent to {user}")
+            break
+
+
+while not_finished:
+    response = query(beep=False)
+    if "echo" in response:
+        not_finished = main(response)
+    else:
+        print("No activation", response)
+speak("Okay, disabling...")
+print("all finished")
